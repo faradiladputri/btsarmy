@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>BTS War Ticket – Ticketmaster Mode</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+:root{
+ --accent:#ffb703;
+ --danger:#ff4d6d;
+ --success:#72efdd;
+}
+*{box-sizing:border-box}
+
+body{
+ margin:0;
+ font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+ background:linear-gradient(160deg,#240046,#5a189a);
+ color:#fff;
+ display:flex;
+ justify-content:center;
+}
+
+.app{width:100%;max-width:430px;padding:18px}
+
+h1{text-align:center;font-size:22px}
+.subtitle{text-align:center;font-size:13px;opacity:.85;margin-bottom:12px}
+
+/* COUNTRY */
+.country{
+ display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px
+}
+.country button{
+ flex:1 1 30%;
+ padding:8px;border-radius:10px;
+ border:none;background:#444;color:#fff;font-size:12px
+}
+.country .active{background:var(--accent);color:#000}
+
+/* TIMER */
+.timer{text-align:center;font-size:26px;font-weight:bold;margin:10px}
+
+/* BUTTON */
+button.main{
+ width:100%;padding:15px;border-radius:14px;
+ border:none;font-size:16px;font-weight:bold
+}
+.disabled{background:#777}
+.primary{background:var(--accent);color:#000}
+
+/* QUEUE */
+.queue-box{
+ display:none;text-align:center;
+ background:rgba(0,0,0,.3);
+ padding:12px;border-radius:14px;margin-top:12px
+}
+.queue-num{font-size:22px;font-weight:bold}
+
+/* SEAT MAP */
+.seat-map{display:none;margin-top:12px}
+.section{margin-bottom:14px}
+.section h4{margin:6px 0;font-size:14px}
+.seats{
+ display:grid;
+ grid-template-columns:repeat(10,1fr);
+ gap:6px
+}
+.seat{
+ padding:10px;border-radius:8px;
+ background:#444;text-align:center;font-size:12px
+}
+.seat.taken{background:#666}
+.seat.selected{background:var(--accent);color:#000}
+
+/* STATUS */
+.status{text-align:center;margin-top:10px;min-height:26px}
+.success{color:var(--success)}
+.fail{color:var(--danger)}
+.loading{color:var(--accent)}
+
+/* LEADERBOARD */
+.panel{
+ background:rgba(0,0,0,.3);
+ padding:12px;border-radius:14px;margin-top:12px
+}
+.panel h3{margin:0 0 8px;font-size:14px;text-align:center}
+.panel ol{padding-left:18px;font-size:12px}
+
+/* INTERNET */
+.table{
+ width:100%;font-size:12px;border-collapse:collapse
+}
+.table td{
+ padding:6px;border-bottom:1px solid rgba(255,255,255,.15)
+}
+
+.tryagain{margin-top:12px}
+
+.footer{text-align:center;font-size:11px;opacity:.6;margin-top:15px}
+</style>
+</head>
+
+<body>
+<div class="app">
+
+<h1>BTS WAR TICKET</h1>
+<div class="subtitle">Ticketmaster-Style Practice</div>
+
+<!-- COUNTRY -->
+<div class="country" id="countryBox"></div>
+
+<div class="timer" id="timer">00:05</div>
+
+<button id="reserveBtn" class="main primary disabled" disabled>
+RESERVE
+</button>
+
+<div class="queue-box" id="queueBox">
+ Queue Number
+ <div class="queue-num" id="queueNum">—</div>
+</div>
+
+<div class="seat-map" id="seatMap"></div>
+
+<div class="status" id="status"></div>
+
+<!-- TRY AGAIN -->
+<button id="tryAgain" class="main primary tryagain" style="display:none">
+ TRY AGAIN
+</button>
+
+<!-- LEADERBOARD -->
+<div class="panel">
+ <h3>⚡ Leaderboard</h3>
+ <ol id="leaderboard"></ol>
+</div>
+
+<!-- INTERNET INFO -->
+<div class="panel">
+ <h3>📡 Internet Info</h3>
+ <table class="table">
+  <tr><td>Connection</td><td id="connType">—</td></tr>
+  <tr><td>Speed</td><td id="connSpeed">—</td></tr>
+  <tr><td>Provider</td><td id="connISP">—</td></tr>
+  <tr><td>Quality</td><td id="connQuality">—</td></tr>
+ </table>
+</div>
+
+<div class="footer">Good luck ARMY! || @faradiladputri - 2026 💜</div>
+
+</div>
+
+<script>
+/* ---------------- COUNTRY ---------------- */
+const countries=[
+ "Korea","Indonesia","US","Europe",
+ "Singapore","Thailand","Malaysia","Philippines"
+];
+let selectedCountry="Korea";
+const countryBox=document.getElementById("countryBox");
+
+countries.forEach(c=>{
+ const b=document.createElement("button");
+ b.textContent=c;
+ if(c===selectedCountry)b.classList.add("active");
+ b.onclick=()=>{
+  document.querySelectorAll(".country button").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  selectedCountry=c;
+ };
+ countryBox.appendChild(b);
+});
+
+/* ---------------- COUNTDOWN ---------------- */
+let timeLeft=5,startTime;
+const timer=document.getElementById("timer");
+const reserveBtn=document.getElementById("reserveBtn");
+const queueBox=document.getElementById("queueBox");
+const queueNum=document.getElementById("queueNum");
+const seatMap=document.getElementById("seatMap");
+const status=document.getElementById("status");
+const tryAgain=document.getElementById("tryAgain");
+
+const cd=setInterval(()=>{
+ timeLeft--;
+ timer.textContent=`00:0${timeLeft}`;
+ if(timeLeft<=0){
+  clearInterval(cd);
+  timer.textContent="OPEN!";
+  reserveBtn.disabled=false;
+  reserveBtn.classList.remove("disabled");
+  startTime=performance.now();
+ }
+},1000);
+
+/* ---------------- QUEUE ---------------- */
+reserveBtn.onclick=()=>{
+ reserveBtn.disabled=true;
+ status.textContent="Entering queue...";
+ status.className="status loading";
+ queueBox.style.display="block";
+
+ const base={
+  Korea:8000,US:6000,Europe:5500,
+  Singapore:4000,Thailand:3500,
+  Malaysia:3000,Philippines:2800,
+  Indonesia:2500
+ };
+ let q=Math.floor(Math.random()*base[selectedCountry])+500;
+ queueNum.textContent=q;
+
+ const int=setInterval(()=>{
+  q-=Math.floor(Math.random()*200)+100;
+  if(q<=0){
+   clearInterval(int);
+   showSeatMap();
+  }else queueNum.textContent=q;
+ },700);
+};
+
+/* ---------------- SEAT MAP ---------------- */
+function showSeatMap(){
+ queueBox.style.display="none";
+ seatMap.style.display="block";
+ status.textContent="Pick your seat";
+ seatMap.innerHTML="";
+
+ ["VIP","CAT 1","CAT 2"].forEach(sec=>{
+  const s=document.createElement("div");
+  s.className="section";
+  s.innerHTML=`<h4>${sec}</h4>`;
+  const grid=document.createElement("div");
+  grid.className="seats";
+
+  for(let i=1;i<=30;i++){
+   const seat=document.createElement("div");
+   seat.className="seat";
+   seat.textContent=i;
+   if(Math.random()<0.25)seat.classList.add("taken");
+   seat.onclick=()=>selectSeat(seat,sec);
+   grid.appendChild(seat);
+  }
+  s.appendChild(grid);
+  seatMap.appendChild(s);
+ });
+}
+
+/* ---------------- SEAT CLASH + LEADERBOARD ---------------- */
+const lb=JSON.parse(localStorage.getItem("btsLB_tm"))||[];
+const lbEl=document.getElementById("leaderboard");
+
+function selectSeat(seat,sec){
+ if(seat.classList.contains("taken"))return;
+ seat.classList.add("selected");
+ status.textContent="Confirming seat...";
+ status.className="status loading";
+
+ setTimeout(()=>{
+  if(Math.random()<0.35){
+   seat.classList.remove("selected");
+   seat.classList.add("taken");
+   status.textContent="⚔️ Seat taken by another fan!";
+   status.className="status fail";
+  }else{
+   const rt=Math.round(performance.now()-startTime);
+   status.textContent=`✅ ${sec} Seat ${seat.textContent} — ${rt} ms`;
+   status.className="status success";
+
+   lb.push({time:rt,seat:`${sec}-${seat.textContent}`,country:selectedCountry});
+   lb.sort((a,b)=>a.time-b.time);
+   localStorage.setItem("btsLB_tm",JSON.stringify(lb));
+   renderLB();
+   tryAgain.style.display="block";
+  }
+ },1200);
+}
+
+function renderLB(){
+ lbEl.innerHTML="";
+ lb.slice(0,10).forEach(x=>{
+  const li=document.createElement("li");
+  li.textContent=`${x.time} ms — ${x.seat} (${x.country})`;
+  lbEl.appendChild(li);
+ });
+}
+renderLB();
+
+/* ---------------- TRY AGAIN ---------------- */
+tryAgain.onclick=()=>location.reload();
+
+/* ---------------- INTERNET INFO ---------------- */
+const conn=navigator.connection||{};
+document.getElementById("connType").textContent=conn.effectiveType||"Unknown";
+
+const speed=conn.downlink||0;
+document.getElementById("connSpeed").textContent=
+ speed?`${speed} Mbps`:"Unavailable";
+
+document.getElementById("connISP").textContent=
+ conn.type==="wifi"?"WiFi / ISP Unknown":"Mobile Network";
+
+let quality="BAD";
+if(speed>=10)quality="GOOD";
+else if(speed>=5)quality="OKAY";
+document.getElementById("connQuality").textContent=quality;
+</script>
+
+</body>
+</html>
